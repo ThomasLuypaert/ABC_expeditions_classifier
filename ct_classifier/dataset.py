@@ -13,7 +13,8 @@
 '''
 
 import os
-import json
+import re
+import pandas
 from torch.utils.data import Dataset
 from torchvision.transforms import Compose, Resize, ToTensor
 from PIL import Image
@@ -39,36 +40,48 @@ class CTDataset(Dataset):
         # index data into list
         self.data = []
 
-        # load annotation file
+        # load metadata file
+
         annoPath = os.path.join(
-            self.data_root,
-            'eccv_18_annotation_files',
-            'train_annotations.json' if self.split=='train' else 'cis_val_annotations.json'
+            self.data_root, 
+            "metadata_small.csv"
         )
-        meta = json.load(open(annoPath, 'r'))
+
+        meta = pandas.read_csv(annoPath)
+
+        if self.split == "train":
+            meta = meta[meta["train_test"] == "train"]
+
+        if self.split == "test":
+            meta = meta[meta["train_test"] == "validate"]
+
+        meta['id'] = meta['file_name'] + '_' + meta['image_name']
+
+        meta['full_path'] = self.data_root + "/" + meta['image_loc']
 
         # enable filename lookup. Creates image IDs and assigns each ID one filename. 
         #  If your original images have multiple detections per image, this code assumes
         #  that you've saved each detection as one image that is cropped to the size of the
         #  detection, e.g., via megadetector.
-        images = dict([[i['id'], i['file_name']] for i in meta['images']])
+        self.images = dict(zip(meta['id'], meta['full_path']))
         # create custom indices for each category that start at zero. Note: if you have already
         #  had indices for each category, they might not match the new indices.
-        labels = dict([[c['id'], idx] for idx, c in enumerate(meta['categories'])])
+
+        categories = meta['category'].unique().tolist()
+        index = categories.index("empty")
+        categories.pop(index)
+        categories.insert(0, "empty")
+
+        labels = dict([c, idx]  for idx, c in enumerate(categories))
         
         # since we're doing classification, we're just taking the first annotation per image and drop the rest
-        images_covered = set()      # all those images for which we have already assigned a label
-        for anno in meta['annotations']:
-            imgID = anno['image_id']
-            if imgID in images_covered:
-                continue
-            
-            # append image-label tuple to data
-            imgFileName = images[imgID]
-            label = anno['category_id']
-            labelIndex = labels[label]
-            self.data.append([imgFileName, labelIndex])
-            images_covered.add(imgID)       # make sure image is only added once to dataset
+        
+        for index, row in meta.iterrows():
+
+            self.data.append([row['id'], row['category']])
+
+        for item in self.data:
+            item[1] = labels.get(item[1])
     
 
     def __len__(self):
@@ -86,7 +99,7 @@ class CTDataset(Dataset):
         image_name, label = self.data[idx]              # see line 57 above where we added these two items to the self.data list
 
         # load image
-        image_path = os.path.join(self.data_root, 'eccv_18_all_images_sm', image_name)
+        image_path = self.images.get(image_name)
         img = Image.open(image_path).convert('RGB')     # the ".convert" makes sure we always get three bands in Red, Green, Blue order
 
         # transform: see lines 31ff above where we define our transformations
