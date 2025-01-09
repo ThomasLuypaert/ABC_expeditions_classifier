@@ -8,7 +8,7 @@ device: cuda            # if you have multiple GPU's, you can use 'cude:4' to sp
 num_workers: 4          # number of CPU cores that load data in parallel. You can set this to the number of logical CPU cores that you have. 
 
 # dataset parameters
-data_root: datasets/CaltechCT
+data_root: "/mnt/e/CV4E_small"
 num_classes: 16
 
 # training hyperparameters
