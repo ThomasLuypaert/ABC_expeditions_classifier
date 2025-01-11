@@ -49,6 +49,20 @@ class CTDataset(Dataset):
 
         meta = pandas.read_csv(annoPath)
 
+        # create custom indices for each category that start at zero. Note: if you have already
+        #  had indices for each category, they might not match the new indices.
+
+        categories = meta['category'].unique().tolist()
+        index = categories.index("empty")
+        categories.pop(index)
+        categories.insert(0, "empty")
+
+        self.labels = dict([c, idx]  for idx, c in enumerate(categories))
+
+        self.inv_labels = dict([idx, c]  for idx, c in enumerate(categories))
+
+        # Subsetting metadata based on training or testing data
+
         if self.split == "train":
             meta = meta[meta["train_test"] == "train"]
 
@@ -59,20 +73,15 @@ class CTDataset(Dataset):
 
         meta['full_path'] = self.data_root + "/" + meta['image_loc']
 
+        # Subsetting the labels dictionary based on training/testing data
+
+        self.labels = {k: self.labels[k] for k in meta['category'].unique().tolist()}
+        
         # enable filename lookup. Creates image IDs and assigns each ID one filename. 
         #  If your original images have multiple detections per image, this code assumes
         #  that you've saved each detection as one image that is cropped to the size of the
         #  detection, e.g., via megadetector.
         self.images = dict(zip(meta['id'], meta['full_path']))
-        # create custom indices for each category that start at zero. Note: if you have already
-        #  had indices for each category, they might not match the new indices.
-
-        categories = meta['category'].unique().tolist()
-        index = categories.index("empty")
-        categories.pop(index)
-        categories.insert(0, "empty")
-
-        labels = dict([c, idx]  for idx, c in enumerate(categories))
         
         # since we're doing classification, we're just taking the first annotation per image and drop the rest
         
@@ -81,7 +90,7 @@ class CTDataset(Dataset):
             self.data.append([row['id'], row['category']])
 
         for item in self.data:
-            item[1] = labels.get(item[1])
+            item[1] = self.labels.get(item[1])
     
 
     def __len__(self):

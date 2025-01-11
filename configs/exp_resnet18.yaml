@@ -8,8 +8,8 @@ device: cuda            # if you have multiple GPU's, you can use 'cude:4' to sp
 num_workers: 4          # number of CPU cores that load data in parallel. You can set this to the number of logical CPU cores that you have. 
 
 # dataset parameters
-data_root: "/mnt/e/CV4E_small"
-num_classes: 16 
+data_root: "/mnt/class_data/group2/thomasluypaert/CV4E_small"
+num_classes: 31 
 # training hyperparameters
 image_size: [224, 224]
 num_epochs: 200         # number of epochs. Each epoch has multiple iterations. In each epoch the model goes over the full dataset once.
