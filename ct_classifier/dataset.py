@@ -16,7 +16,7 @@ import os
 import re
 import pandas
 from torch.utils.data import Dataset
-from torchvision.transforms import Compose, Resize, ToTensor
+from torchvision.transforms import Compose, Resize, RandomHorizontalFlip, RandomRotation, ToTensor
 from PIL import Image
 
 
@@ -33,8 +33,10 @@ class CTDataset(Dataset):
         #  For now, we just resize the images to the same dimensions...and convert them to torch.Tensor.
         #  For other transformations see Björn's lecture on August 11 or 
         self.transform = Compose([              
-            Resize((cfg['image_size'])),        
-            ToTensor()                          
+            Resize((cfg['image_size'])),
+            RandomHorizontalFlip(p=cfg['flip_prob']),     
+            RandomRotation(degrees = cfg["rot_range"]), 
+            ToTensor()                        
         ])
         
         # index data into list

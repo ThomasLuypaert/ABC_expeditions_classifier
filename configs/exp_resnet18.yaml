@@ -10,6 +10,11 @@ num_workers: 4          # number of CPU cores that load data in parallel. You ca
 # dataset parameters
 data_root: "/mnt/class_data/group2/thomasluypaert/CV4E_small"
 num_classes: 31 
+# transformation parameters
+flip_prob: 0.5
+rot_range: [-5, 5]
+blur_prob: 0.05
+bright_prob: 0.05
 # training hyperparameters
 image_size: [224, 224]
 num_epochs: 200         # number of epochs. Each epoch has multiple iterations. In each epoch the model goes over the full dataset once.
