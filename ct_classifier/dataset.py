@@ -69,11 +69,14 @@ class CTDataset(Dataset):
         if self.split == "test":
             meta = meta[meta["train_test"] == "validate"]
 
+        if self.split == "none":
+            meta = meta
+
         meta['id'] = meta['file_name'] + '_' + meta['image_name']
 
         meta['full_path'] = self.data_root + "/" + meta['image_loc']
 
-        # Subsetting the labels dictionary based on training/testing data
+        # Subsetting the labels dictionary based on training/testing/all data
 
         self.labels = {k: self.labels[k] for k in meta['category'].unique().tolist()}
         
