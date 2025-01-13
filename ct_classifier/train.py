@@ -17,9 +17,9 @@ from torch.utils.data import DataLoader # the pytorch dataloader class will take
 from torch.optim import SGD # this imports the optimizer
 
 # let's import our own classes and functions!
-from util import init_seed
-from dataset import CTDataset
-from model import CustomResNet18
+from .util import init_seed
+from .dataset import CTDataset
+from .model import CustomResNet18
 
 
 

@@ -16,6 +16,8 @@ conda create -n cv4ecology python=3.9 -y
 conda activate cv4ecology
 pip install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
 pip install -r requirements.txt
+
+pip install -e . # Needed to install the ct_classifier directory as a package (! you need a setup.py file as well)
 ```
 
 3. Download dataset
