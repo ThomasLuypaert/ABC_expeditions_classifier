@@ -10,16 +10,19 @@ import argparse
 import yaml
 import glob
 from tqdm import trange
+import wandb
+import random
 
 import torch # this imports pytorch
+from torchmetrics import F1Score, Precision, Recall, ConfusionMatrix, Accuracy
 import torch.nn as nn # this contains our loss function 
 from torch.utils.data import DataLoader # the pytorch dataloader class will take care of all kind of parallelization during training
 from torch.optim import SGD # this imports the optimizer
 
 # let's import our own classes and functions!
-from .util import init_seed
-from .dataset import CTDataset
-from .model import CustomResNet18
+from ct_classifier.util import init_seed
+from ct_classifier.dataset import CTDataset
+from ct_classifier.model import CustomResNet18
 
 
 
@@ -118,7 +121,7 @@ def train(cfg, dataLoader, model, optimizer):
 
     # running averages
     loss_total, oa_total = 0.0, 0.0                         # for now, we just log the loss and overall accuracy (OA)
-
+    
     # iterate over dataLoader
     progressBar = trange(len(dataLoader))
     for idx, (data, labels) in enumerate(dataLoader):       # see the last line of file "dataset.py" where we return the image tensor (data) and label
@@ -183,6 +186,13 @@ def validate(cfg, dataLoader, model):
     # running averages
     loss_total, oa_total = 0.0, 0.0     # for now, we just log the loss and overall accuracy (OA)
 
+    # Initialize torchmetrics
+    num_classes = cfg['num_classes']  # Ensure this is defined in your config
+    accuracy = Accuracy(task="multiclass", num_classes=num_classes).to(device)
+    precision = Precision(task="multiclass", num_classes=num_classes, average="weighted").to(device)
+    recall = Recall(task="multiclass", num_classes=num_classes, average="weighted").to(device)
+    f1_score = F1Score(task="multiclass", num_classes=num_classes, average="weighted").to(device)
+
     # iterate over dataLoader
     progressBar = trange(len(dataLoader))
     
@@ -205,6 +215,12 @@ def validate(cfg, dataLoader, model):
             oa = torch.mean((pred_label == labels).float())
             oa_total += oa.item()
 
+            # Update torchmetrics
+            accuracy.update(pred_label, labels)
+            precision.update(pred_label, labels)
+            recall.update(pred_label, labels)
+            f1_score.update(pred_label, labels)
+
             progressBar.set_description(
                 '[Val ] Loss: {:.2f}; OA: {:.2f}%'.format(
                     loss_total/(idx+1),
@@ -218,7 +234,24 @@ def validate(cfg, dataLoader, model):
     loss_total /= len(dataLoader)
     oa_total /= len(dataLoader)
 
-    return loss_total, oa_total
+    # Compute metrics at the end of the epoch
+    accuracy = accuracy.compute()
+    precision = precision.compute()
+    recall = recall.compute()
+    f1_score = f1_score.compute()
+
+    print(f"accuracy ; {accuracy}")
+    print(f"precision ; {precision}")
+    print(f"recall ; {recall}")
+    print(f"f1_score ; {f1_score}")
+
+    # Reset metrics for the next epoch
+    #accuracy.reset()
+    #precision.reset()
+    #recall.reset()
+    #f1_score.reset()
+
+    return loss_total, oa_total, accuracy, precision, recall, f1_score
 
 
 
@@ -233,6 +266,24 @@ def main():
     # load config
     print(f'Using config "{args.config}"')
     cfg = yaml.safe_load(open(args.config, 'r'))
+
+    # Initialize weights and biases
+
+    wandb.init(
+        
+        # set the wandb project where this run will be logged
+        project="my-awesome-project",
+        entity = "thomas-luypaert-norwegian-university-of-life-sciences",
+        
+        # track hyperparameters and run metadata
+        
+        config={
+            "learning_rate": cfg["learning_rate"],
+            "architecture": "ResNet",
+            "dataset": "ABC-expeditions",
+            "epochs": cfg["num_epochs"]}
+            )
+    
 
     # init random number generator seed (set at the start)
     init_seed(cfg.get('seed', None))
@@ -260,15 +311,31 @@ def main():
         print(f'Epoch {current_epoch}/{numEpochs}')
 
         loss_train, oa_train = train(cfg, dl_train, model, optim)
-        loss_val, oa_val = validate(cfg, dl_val, model)
+        loss_val, oa_val, accuracy, precision, recall, f1_score = validate(cfg, dl_val, model)
 
         # combine stats and save
         stats = {
             'loss_train': loss_train,
             'loss_val': loss_val,
             'oa_train': oa_train,
-            'oa_val': oa_val
+            'oa_val': oa_val,
+            "accuracy": accuracy, 
+            "precision": precision, 
+            "recall": recall,
+            "f1-score": f1_score
         }
+
+         # Send to wandb
+         
+        wandb.log({"val_loss": loss_val,
+                   "val_oa": oa_val,
+                   "acc": accuracy, 
+                   "precision":precision,
+                   "recall":recall,
+                   "f1-score":f1_score})
+
+        # wandb.save(str()) # To save the checkpoints to wandb
+    
         save_model(cfg, current_epoch, model, stats)
     
 

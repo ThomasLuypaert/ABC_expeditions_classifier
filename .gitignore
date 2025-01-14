@@ -9,3 +9,6 @@ __pycache__
 
 # Ignore local package installations
 *.egg-info
+
+# Weights and biases info
+wandb/
