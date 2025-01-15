@@ -33,12 +33,24 @@ def create_dataloader(cfg, split='train'):
     '''
     dataset_instance = CTDataset(cfg, split)        # create an object instance of our CTDataset class
 
-    dataLoader = DataLoader(
+    if split == "train":
+        
+        dataLoader = DataLoader(
             dataset=dataset_instance,
             batch_size=cfg['batch_size'],
             shuffle=True,
             num_workers=cfg['num_workers']
         )
+
+    if split == "test":
+
+        dataLoader = DataLoader(
+            dataset=dataset_instance,
+            batch_size=cfg['batch_size'],
+            shuffle=False,
+            num_workers=cfg['num_workers']
+        )
+
     return dataLoader
 
 
@@ -124,7 +136,7 @@ def train(cfg, dataLoader, model, optimizer):
     
     # iterate over dataLoader
     progressBar = trange(len(dataLoader))
-    for idx, (data, labels) in enumerate(dataLoader):       # see the last line of file "dataset.py" where we return the image tensor (data) and label
+    for idx, (data, labels, _) in enumerate(dataLoader):       # see the last line of file "dataset.py" where we return the image tensor (data) and label
 
         # put data and labels on device
         data, labels = data.to(device), labels.to(device)
