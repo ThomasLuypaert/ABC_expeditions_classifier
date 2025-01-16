@@ -12,3 +12,5 @@ __pycache__
 
 # Weights and biases info
 wandb/
+
+posthoc_data/

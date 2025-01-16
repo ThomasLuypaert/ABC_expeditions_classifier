@@ -1,6 +1,7 @@
 
 import torch
 import pandas as pd
+import numpy as np
 
 import yaml
 
@@ -39,7 +40,13 @@ def model_inference(config,checkpoint_path ):
     prediction_labels = []
     prediction_confs = []
     true_labels = []
+    true_labels_conv = []
     file_list = []
+    prediction_labels_conv = []
+
+    prediction_df_raw = []
+
+    label_dict = dl_val.dataset.inv_labels
 
     for idx, (data, labels, file_names) in enumerate(dl_val):
 
@@ -50,33 +57,57 @@ def model_inference(config,checkpoint_path ):
         s = Softmax(dim=1)
         
         with torch.no_grad():
-             prediction = model(data)
+            prediction = model(data)
 
+        # Grab raw prediction scores per sample
+
+        prediction_raw = prediction # no softmax applied
+        prediction_raw = prediction_raw.cpu().numpy()
+
+        colnames = range(prediction_raw.shape[1])
+        colnames = [label_dict[x] for x in colnames]
+
+        prediction_raw = pd.DataFrame(prediction_raw, columns=colnames)
+
+        # Grab max softmax prediction score per sample        
         prediction = s(prediction)
+        
+        # Grab prediction labels and confidences    
         pred_label = torch.argmax(prediction, dim=1)
-        pred_conf = prediction.max(dim = 1).values
+        pred_label_conv = [label_dict[int(x.item())] for x in pred_label]
+        pred_conf = prediction.max(dim = 1).values 
 
         prediction_labels.append(pred_label.cpu().numpy())
+        prediction_labels_conv.append(pred_label_conv)
         prediction_confs.append(pred_conf.cpu().numpy())
 
         # Get ground-truth labels 
 
+        labels_conv = [label_dict[int(x.item())] for x in labels]
+
         true_labels.append(labels)
+        true_labels_conv.append(labels_conv)
+
         file_list.append(file_names)
 
-    print(len(prediction_labels))
-    print(len(prediction_confs))
-    print(len(true_labels))
-    print(len(file_names))
-    
-    prediction_df = {'pred_labels': prediction_labels,
-                     "pred_confs" : prediction_confs, 
-                     "true_labels": true_labels, 
-                     "file_names": file_names}
+        # Create data frame 1 (raw prediction scores per frame)
+
+        prediction_raw.insert(0, "true_label", np.array(labels_conv))
+        prediction_raw.insert(0, 'file_name', file_names)
+
+        prediction_df_raw.append(prediction_raw)
+
+    prediction_df_raw = pd.concat(prediction_df_raw, ignore_index=True)
+    prediction_df = {'pred_labels': np.hstack(prediction_labels),
+                     "pred_labels_full": np.hstack(prediction_labels_conv),
+                     "pred_confs" : np.hstack(prediction_confs), 
+                     "true_labels": np.hstack(true_labels), 
+                     "true_labels_full": np.hstack(true_labels_conv),
+                     "file_names": np.hstack(file_list)}
     
     prediction_df = pd.DataFrame(prediction_df)
 
-    return prediction_df
+    return prediction_df, prediction_df_raw
 
 
 

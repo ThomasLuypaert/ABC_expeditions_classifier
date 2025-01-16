@@ -55,9 +55,9 @@ class CTDataset(Dataset):
         #  had indices for each category, they might not match the new indices.
 
         categories = meta['category'].unique().tolist()
-        index = categories.index("empty")
-        categories.pop(index)
-        categories.insert(0, "empty")
+        #index = categories.index("empty")
+        #categories.pop(index)
+        #categories.insert(0, "empty")
 
         self.labels = dict([c, idx]  for idx, c in enumerate(categories))
 

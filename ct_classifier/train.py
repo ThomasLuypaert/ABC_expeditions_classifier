@@ -32,22 +32,11 @@ def create_dataloader(cfg, split='train'):
         PyTorch DataLoader object.
     '''
     dataset_instance = CTDataset(cfg, split)        # create an object instance of our CTDataset class
-
-    if split == "train":
         
-        dataLoader = DataLoader(
+    dataLoader = DataLoader(
             dataset=dataset_instance,
             batch_size=cfg['batch_size'],
             shuffle=True,
-            num_workers=cfg['num_workers']
-        )
-
-    if split == "test":
-
-        dataLoader = DataLoader(
-            dataset=dataset_instance,
-            batch_size=cfg['batch_size'],
-            shuffle=False,
             num_workers=cfg['num_workers']
         )
 
@@ -209,7 +198,7 @@ def validate(cfg, dataLoader, model):
     progressBar = trange(len(dataLoader))
     
     with torch.no_grad():               # don't calculate intermediate gradient steps: we don't need them, so this saves memory and is faster
-        for idx, (data, labels) in enumerate(dataLoader):
+        for idx, (data, labels, _) in enumerate(dataLoader):
 
             # put data and labels on device
             data, labels = data.to(device), labels.to(device)
@@ -308,7 +297,7 @@ def main():
 
     # initialize data loaders for training and validation set
     dl_train = create_dataloader(cfg, split='train')
-    dl_val = create_dataloader(cfg, split='val')
+    dl_val = create_dataloader(cfg, split='test')
 
     # initialize model
     model, current_epoch = load_model(cfg)
