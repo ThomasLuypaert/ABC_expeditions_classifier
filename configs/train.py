@@ -21,7 +21,7 @@ from torch.optim import SGD # this imports the optimizer
 # let's import our own classes and functions!
 from ct_classifier.util import init_seed, create_confusion_matrix, ann_by_mistake
 from ct_classifier.dataset import CTDataset, create_dataloader
-from ct_classifier.model import CustomResNet18, CustomResNet50, CustomResNet101
+from ct_classifier.model import CustomResNet18, CustomResNet50
 from ct_classifier.inference import model_inference
 
 
@@ -36,10 +36,6 @@ def load_model(cfg, model_depth = "ResNet18"):
     if model_depth == "ResNet50":
         model_instance = CustomResNet50(cfg["num_classes"])  # create an object instance of our CustomResNet50 class     
 
-    if model_depth == "ResNet101":
-        model_instance = CustomResNet101(cfg["num_classes"]) # create an object instance of our CustomResNet101 class     
-
-    
     # load latest model state
     model_loc = os.path.join(cfg["save_path"], cfg["experiment_name"])
     model_states = glob.glob(os.path.join(model_loc, "*.pt"))

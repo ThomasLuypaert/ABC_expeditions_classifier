@@ -15,7 +15,8 @@
 import os
 import re
 import pandas
-from torch.utils.data import Dataset
+import torch
+from torch.utils.data import Dataset, DataLoader
 from torchvision.transforms import Compose, Resize, RandomHorizontalFlip, RandomRotation, ToTensor
 from PIL import Image
 
@@ -120,3 +121,21 @@ class CTDataset(Dataset):
         img_tensor = self.transform(img)
 
         return img_tensor, label, image_name
+    
+
+
+def create_dataloader(cfg, split='train'):
+    '''
+        Loads a dataset according to the provided split and wraps it in a
+        PyTorch DataLoader object.
+    '''
+    dataset_instance = CTDataset(cfg, split)        # create an object instance of our CTDataset class
+        
+    dataLoader = DataLoader(
+            dataset=dataset_instance,
+            batch_size=cfg['batch_size'],
+            shuffle=True,
+            num_workers=cfg['num_workers']
+        )
+
+    return dataLoader

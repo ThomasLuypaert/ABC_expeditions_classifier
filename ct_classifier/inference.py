@@ -7,22 +7,24 @@ import yaml
 
 from torch.nn import Softmax
 
-from ct_classifier.train import create_dataloader
-from ct_classifier.dataset import CTDataset
+from ct_classifier.dataset import CTDataset, create_dataloader
 from ct_classifier.model import CustomResNet18
 
 
-def model_inference(config,checkpoint_path ):
+def model_inference(config,
+                    checkpoint_path, 
+                    split = "test", 
+                    type = "summary"):
 
     # 0. Parameters
 
-    cfg = yaml.safe_load(open(config, 'r'))
+    #cfg = yaml.safe_load(open(config, 'r'))
 
     # 1. Loading the model
 
-    device = cfg['device']
+    device = config['device']
 
-    model = CustomResNet18(cfg['num_classes'])
+    model = CustomResNet18(config['num_classes'])
 
     # 2. Grab the latest model (if pre-trained model exists)
 
@@ -33,7 +35,11 @@ def model_inference(config,checkpoint_path ):
 
     # 3. Prepare the data loader
 
-    dl_val = create_dataloader(cfg, split='test')
+    if split == "test":
+        dl = create_dataloader(config, split='test')
+
+    if split == "train":
+        dl = create_dataloader(config, split = "train")
 
     # 4. Apply the latest model on the validation data and save metrics
 
@@ -46,9 +52,9 @@ def model_inference(config,checkpoint_path ):
 
     prediction_df_raw = []
 
-    label_dict = dl_val.dataset.inv_labels
+    label_dict = dl.dataset.inv_labels
 
-    for idx, (data, labels, file_names) in enumerate(dl_val):
+    for idx, (data, labels, file_names) in enumerate(dl):
 
         data = data.to(device)
 
@@ -107,8 +113,11 @@ def model_inference(config,checkpoint_path ):
     
     prediction_df = pd.DataFrame(prediction_df)
 
-    return prediction_df, prediction_df_raw
+    if type == "raw":
+        return prediction_df_raw
 
+    if type == "summary":
+        return prediction_df
 
 
 
