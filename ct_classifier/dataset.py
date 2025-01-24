@@ -14,12 +14,36 @@
 
 import os
 import re
-import pandas
 import torch
 from torch.utils.data import Dataset, DataLoader
-from torchvision.transforms import Compose, Resize, RandomHorizontalFlip, RandomRotation, ToTensor
+from torchvision.transforms import Compose, Resize, RandomHorizontalFlip, RandomRotation, RandomCrop, ColorJitter, Normalize, GaussianBlur,Grayscale, RandomApply, ToTensor, Pad
+from torchvision import transforms
 from PIL import Image
+import pandas as pd
 
+class CenterPad:
+    def __init__(self, target_size):
+        self.target_size = target_size
+
+    def __call__(self, img):
+        # Original image dimensions
+        width, height = img.size
+
+        # Calculate padding
+        pad_width = max((self.target_size[0] - width) // 2, 0)
+        pad_height = max((self.target_size[1] - height) // 2, 0)
+        padding = (pad_width, pad_height, pad_width, pad_height)
+
+        # Apply padding
+        padded_img = transforms.functional.pad(img, padding, fill=0, padding_mode='constant')
+
+        return padded_img
+
+class BlackOut:
+
+    def __call__(self, img):
+        return torch.zeros_like(img)
+    
 
 class CTDataset(Dataset):
 
@@ -33,12 +57,47 @@ class CTDataset(Dataset):
         # Transforms. Here's where we could add data augmentation 
         #  For now, we just resize the images to the same dimensions...and convert them to torch.Tensor.
         #  For other transformations see Björn's lecture on August 11 or 
-        self.transform = Compose([              
-            Resize((cfg['image_size'])),
-            RandomHorizontalFlip(p=cfg['flip_prob']),     
-            RandomRotation(degrees = cfg["rot_range"]), 
-            ToTensor()                        
-        ])
+
+        if cfg["pad"] == False:
+            trans_list = [Resize(cfg["image_size"])]
+
+        if cfg["pad"] == True:
+
+            trans_list = [CenterPad((cfg['image_size']))] 
+
+        if split == "train":
+
+            trans_list.append(
+                RandomHorizontalFlip(p=cfg['flip_prob']))
+            trans_list.append(  
+                RandomRotation(degrees = cfg["rot_range"]))       
+        
+        if cfg["random_crop"] == True and split == "train":
+            trans_list.append(RandomApply([RandomCrop(size = (cfg["image_size"][0] * (1 - cfg["crop_perc_red"] / 100)))],p=cfg['crop_prob'])) 
+
+        if cfg["random_brightness"] == True and split == "train":
+            trans_list.append(RandomApply([ColorJitter(brightness = cfg["brightness_change"])], p = cfg["brightness_prob"]))
+
+        if cfg["random_contrast"] == True and split == "train":
+            trans_list.append(RandomApply([ColorJitter(contrast = cfg["contrast_change"])], p = cfg["contrast_prob"]))
+
+        if cfg["random_blur"] == True and split == "train":
+            trans_list.append(RandomApply([GaussianBlur(kernel_size = cfg["blur_kernel"], sigma = (cfg["blur_sig_1"],cfg["blur_sig_2"]))], p = cfg["blur_prob"]))
+
+        if cfg["all_greyscale"] == True and split == "train":
+            trans_list.append(Grayscale(num_output_channels=3))
+            
+        
+        trans_list.append(Resize((cfg['image_size'])))
+        trans_list.append(ToTensor())
+
+        if cfg["self_destruct"] == True and split == "train":
+            trans_list.append(BlackOut())
+
+        if cfg["normalize"] == True:
+            trans_list.append(Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225]))
+
+        self.transform = Compose(trans_list)
         
         # index data into list
         self.data = []
@@ -50,7 +109,7 @@ class CTDataset(Dataset):
             "metadata_small.csv"
         )
 
-        meta = pandas.read_csv(annoPath)
+        meta = pd.read_csv(annoPath)
 
         # create custom indices for each category that start at zero. Note: if you have already
         #  had indices for each category, they might not match the new indices.

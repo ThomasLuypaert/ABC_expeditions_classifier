@@ -26,3 +26,33 @@ num_epochs: 200         # number of epochs. Each epoch has multiple iterations. 
 batch_size: 128         # number of images that are processed in parallel in every iteration
 learning_rate: 0.001    # hyperparameter to adjust the optimizer's learning rate 
 weight_decay: 0.001     # hyperparameter for regularization
+
+# early-stopping hyperparameters
+patience: 10
+
+# transformation parameters
+  # random cropping
+random_crop: False
+crop_perc_red: 10
+crop_prob: 0.5
+
+  # brightness
+random_brightness: False
+brightness_change: 0.2
+brightness_prob: 0.5
+
+  # contrast
+random_contrast: False
+contrast_change: 0.2
+contrast_prob: 0.5
+
+  # blur
+
+random_blur: False
+blur_kernel: 5
+blur_sig: (0.1, 2.0)
+blur_prob: 0.25
+
+  # greyscale
+
+all_greyscale: False

@@ -8,7 +8,7 @@ import yaml
 from torch.nn import Softmax
 
 from ct_classifier.dataset import CTDataset, create_dataloader
-from ct_classifier.model import CustomResNet18
+from ct_classifier.model import CustomResNet18, CustomResNet50, CustomResNet101
 
 
 def model_inference(config,
@@ -24,7 +24,14 @@ def model_inference(config,
 
     device = config['device']
 
-    model = CustomResNet18(config['num_classes'])
+    if config["model_depth"] == "ResNet18":
+        model = CustomResNet18(config['num_classes'])
+
+    if config["model_depth"] == "ResNet50":
+        model = CustomResNet50(config['num_classes'])
+
+    if config["model_depth"] == "ResNet101":
+        model = CustomResNet101(config['num_classes'])
 
     # 2. Grab the latest model (if pre-trained model exists)
 

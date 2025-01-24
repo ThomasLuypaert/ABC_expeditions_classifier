@@ -23,6 +23,7 @@ from ct_classifier.util import init_seed, create_confusion_matrix, ann_by_mistak
 from ct_classifier.dataset import CTDataset, create_dataloader
 from ct_classifier.model import CustomResNet18, CustomResNet50
 from ct_classifier.inference import model_inference
+from ct_classifier.loss import map_indices
 
 
 def load_model(cfg, model_depth = "ResNet18"):
@@ -123,6 +124,9 @@ def train(cfg, dataLoader, model, optimizer):
 
         # forward pass
         prediction = model(data)
+
+        # prediction_label?
+        # pred_label = torch.argmax(prediction, dim=1)
 
         # reset gradients to zero
         optimizer.zero_grad()

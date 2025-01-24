@@ -12,6 +12,7 @@ import glob
 from tqdm import trange
 import wandb
 import random
+import numpy as np
 
 import torch # this imports pytorch
 from torchmetrics import F1Score, Precision, Recall, ConfusionMatrix, Accuracy
@@ -21,8 +22,9 @@ from torch.optim import SGD # this imports the optimizer
 # let's import our own classes and functions!
 from ct_classifier.util import init_seed, create_confusion_matrix, ann_by_mistake
 from ct_classifier.dataset import CTDataset, create_dataloader
-from ct_classifier.model import CustomResNet18, CustomResNet50, CustomResNet101
+from ct_classifier.model import CustomResNet18, CustomResNet50, CustomResNet101, CustomResNet152
 from ct_classifier.inference import model_inference
+from ct_classifier.loss import map_indices
 
 
 def load_model(cfg, model_depth = "ResNet18"):
@@ -39,7 +41,9 @@ def load_model(cfg, model_depth = "ResNet18"):
     if model_depth == "ResNet101":
         model_instance = CustomResNet101(cfg["num_classes"]) # create an object instance of our CustomResNet101 class     
 
-    
+    if model_depth == "ResNet152":
+        model_instance = CustomResNet152(cfg["num_classes"]) # create an object instance of our CustomResNet101 class     
+
     # load latest model state
     model_loc = os.path.join(cfg["save_path"], cfg["experiment_name"])
     model_states = glob.glob(os.path.join(model_loc, "*.pt"))
@@ -117,7 +121,19 @@ def train(cfg, dataLoader, model, optimizer):
 
     # running averages
     loss_total, oa_total = 0.0, 0.0                         # for now, we just log the loss and overall accuracy (OA)
-    
+
+    # Get dictionaries for label to grouping indices
+    map_indices_dict= map_indices()
+    convert_label_to_class = map_indices_dict[0]["class"]
+    convert_label_to_order = map_indices_dict[0]["order"]
+    convert_label_to_family = map_indices_dict[0]["family"]
+
+    # Get dictionaries for summing prediction columns
+
+    sum_class_cols = map_indices_dict[1]["class"]
+    sum_order_cols = map_indices_dict[1]["order"]
+    sum_family_cols = map_indices_dict[1]["family"]
+
     # iterate over dataLoader
     progressBar = trange(len(dataLoader))
     for idx, (data, labels, _) in enumerate(dataLoader):       # see the last line of file "dataset.py" where we return the image tensor (data) and label
@@ -132,7 +148,57 @@ def train(cfg, dataLoader, model, optimizer):
         optimizer.zero_grad()
 
         # loss
-        loss = criterion(prediction, labels)
+
+        labels_list = labels.tolist()
+
+            # Class
+
+        class_list = [convert_label_to_class[species] for species in labels_list]
+        class_tensor = torch.tensor(class_list)
+
+        prediction_class = torch.empty(data.shape[0],len(sum_class_cols.keys()))
+        for key, columns in sum_class_cols.items():
+            prediction_class[:,key] = torch.sum(prediction[:, columns], dim=1)
+            
+        #prediction_class = np.column_stack([result_class[key].cpu().numpy() for key in sum_class_cols])
+
+        loss_class = criterion(prediction_class, class_tensor)
+
+            # Order
+
+        order_list = [convert_label_to_order[species] for species in labels_list]
+        order_tensor = torch.tensor(order_list)
+
+        prediction_order = torch.empty(data.shape[0],len(sum_order_cols.keys()))
+        for key, columns in sum_order_cols.items():
+            prediction_order[:,key] = torch.sum(prediction[:, columns], dim=1)
+            
+        #prediction_order = np.column_stack([result_order[key].cpu().numpy() for key in sum_order_cols])
+
+        loss_order = criterion(prediction_order, order_tensor)
+
+            # Family
+
+        family_list = [convert_label_to_family[species] for species in labels_list]
+        family_tensor = torch.tensor(family_list)
+
+        prediction_family = torch.empty(data.shape[0],len(sum_family_cols.keys()))
+        for key, columns in sum_family_cols.items():
+            prediction_family[:,key] = torch.sum(prediction[:, columns], dim=1)
+            
+        #prediction_family = np.column_stack([result_family[key].cpu().numpy() for key in sum_family_cols])
+
+        loss_family = criterion(prediction_family, family_tensor)
+
+            # Labels
+
+        loss_labels = criterion(prediction, labels)
+
+            # Total
+
+        loss = loss_class + loss_order + loss_family + loss_labels
+
+        # loss_class + loss_order + loss_family + loss_labels
 
         # backward pass (calculate gradients of current batch)
         loss.backward()
@@ -189,6 +255,18 @@ def validate(cfg, dataLoader, model):
     recall = Recall(task="multiclass", num_classes=num_classes, average="weighted").to(device)
     f1_score = F1Score(task="multiclass", num_classes=num_classes, average="weighted").to(device)
 
+    # Get dictionaries for label to grouping indices
+    map_indices_dict= map_indices()
+    convert_label_to_class = map_indices_dict[0]["class"]
+    convert_label_to_order = map_indices_dict[0]["order"]
+    convert_label_to_family = map_indices_dict[0]["family"]
+
+    # Get dictionaries for summing prediction columns
+
+    sum_class_cols = map_indices_dict[1]["class"]
+    sum_order_cols = map_indices_dict[1]["order"]
+    sum_family_cols = map_indices_dict[1]["family"]
+
     # iterate over dataLoader
     progressBar = trange(len(dataLoader))
     
@@ -202,7 +280,56 @@ def validate(cfg, dataLoader, model):
             prediction = model(data)
 
             # loss
-            loss = criterion(prediction, labels)
+
+            labels_list = labels.tolist()
+
+                # Class
+            
+            class_list = [convert_label_to_class[species] for species in labels_list]
+            class_tensor = torch.tensor(class_list)
+            
+            prediction_class = torch.empty(data.shape[0],len(sum_class_cols.keys()))
+            
+            for key, columns in sum_class_cols.items():
+                prediction_class[:,key] = torch.sum(prediction[:, columns], dim=1)
+            
+            loss_class = criterion(prediction_class, class_tensor)
+
+                # Order
+
+            order_list = [convert_label_to_order[species] for species in labels_list]
+            order_tensor = torch.tensor(order_list)
+
+            prediction_order = torch.empty(data.shape[0],len(sum_order_cols.keys()))
+            
+            for key, columns in sum_order_cols.items():
+                prediction_order[:,key] = torch.sum(prediction[:, columns], dim=1)
+
+            loss_order = criterion(prediction_order, order_tensor)
+
+                # Family
+
+            family_list = [convert_label_to_family[species] for species in labels_list]
+            family_tensor = torch.tensor(family_list)
+
+            result_family = {}
+
+            prediction_family = torch.empty(data.shape[0],len(sum_family_cols.keys()))
+            
+            for key, columns in sum_family_cols.items():
+                prediction_family[:,key] = torch.sum(prediction[:, columns], dim=1)
+
+            loss_family = criterion(prediction_family, family_tensor)
+
+                # Labels
+
+            loss_labels = criterion(prediction, labels)
+
+                # Total
+
+            loss = loss_class + loss_order + loss_family + loss_labels
+
+            # + loss_family +
 
             # log statistics
             loss_total += loss.item()
@@ -306,6 +433,11 @@ def main():
 
     # we have everything now: data loaders, model, optimizer; let's do the epochs!
     numEpochs = cfg['num_epochs']
+
+    patience = cfg["patience"]
+    epochs_without_improvement = 0
+    loss_val_best = float('inf')
+
     while current_epoch < numEpochs:
         current_epoch += 1
         print(f'Epoch {current_epoch}/{numEpochs}')
@@ -346,6 +478,17 @@ def main():
         if current_epoch == cfg["num_epochs"]:
             save_model(cfg, model, stats, ckpt_name = "last.pt")
 
+        if loss_val < loss_val_best:
+            loss_val_best = loss_val
+            epochs_without_improvement = 0
+
+        else:
+            epochs_without_improvement += 1
+            if epochs_without_improvement >= patience:
+                print("Early stopping at epoch {}".format(current_epoch))
+                break
+
+
     # Generate a summary_df on the last epoch weights
 
     checkpoint_location = os.path.join(cfg["save_path"], cfg["experiment_name"])
@@ -376,8 +519,8 @@ def main():
 
     # Pipe to Weights and Biases
 
-    wandb.log({ 'chart' : wandb.Image(conf_mat) }, 
-              { 'chart' : wandb.Image(mistakes_plot)})
+    wandb.log({'conf_mat' : wandb.Image(conf_mat),  
+               'mistakes' : wandb.Image(mistakes_plot)})
 
     # That's all, folks!
         

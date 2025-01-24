@@ -8,18 +8,17 @@ device: cuda            # if you have multiple GPU's, you can use 'cude:4' to sp
 num_workers: 4          # number of CPU cores that load data in parallel. You can set this to the number of logical CPU cores that you have. 
 
 save_path: "/home/Thomas/ABC_expeditions_classifier/model_states"
-experiment_name: "experiment_5"
+experiment_name: "ABC_experiment_15"
 
 # dataset parameters
 data_root: "/mnt/class_data/group2/thomasluypaert/CV4E_small"
 num_classes: 30 
 # model parameters
-model_depth: "ResNet101"
+model_depth: "ResNet50"
 # transformation parameters
+pad: False
 flip_prob: 0.5
 rot_range: [-5, 5]
-blur_prob: 0.05
-bright_prob: 0.05
 # training hyperparameters
 image_size: [224, 224]
 num_epochs: 200         # number of epochs. Each epoch has multiple iterations. In each epoch the model goes over the full dataset once.
@@ -31,6 +30,10 @@ weight_decay: 0.001     # hyperparameter for regularization
 patience: 10
 
 # transformation parameters
+
+  # normalization
+normalize: False
+
   # random cropping
 random_crop: False
 crop_perc_red: 10
@@ -42,7 +45,7 @@ brightness_change: 0.2
 brightness_prob: 0.5
 
   # contrast
-random_contrast: False
+random_contrast: True
 contrast_change: 0.2
 contrast_prob: 0.5
 
@@ -50,9 +53,14 @@ contrast_prob: 0.5
 
 random_blur: False
 blur_kernel: 5
-blur_sig: (0.1, 2.0)
+blur_sig_1: 0.1
+blur_sig_2: 2.0
 blur_prob: 0.25
 
   # greyscale
 
 all_greyscale: False
+
+  # Self-destruct
+
+self_destruct: False

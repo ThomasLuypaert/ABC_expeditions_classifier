@@ -7,10 +7,10 @@ import cv2
 
 # Definitions
 
-def show_batch_image(batch, index):
+def show_batch_image(dataloader, index):
 
     # 1. Grab the image at the right index and convert to numpy array
-    
+    batch = next(iter(dataloader))
     numpy_array_img = batch[0][index].detach().numpy()
     numpy_array_img=np.transpose(numpy_array_img, (1, 2, 0))
 
@@ -19,7 +19,7 @@ def show_batch_image(batch, index):
     image = Image.fromarray((255*numpy_array_img).astype(np.uint8))
     draw  = ImageDraw.Draw(image)
     draw.text((20,20), 
-          dl_test.dataset.inv_labels.get(batch[1][index].item()), 
+          dataloader.dataset.inv_labels.get(batch[1][index].item()), 
           fill="#FFFF00")
     
     plt.imshow(image)
